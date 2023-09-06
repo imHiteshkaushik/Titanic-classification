@@ -1,0 +1,64 @@
+//Task 1
+//Make a system which tells whether the person will be save from sinking. What factors were most likely lead to success-socio-economic status, age, gender and more.
+//C++ code
+#include <dlib/mlp.h>
+#include <dlib/dnn.h>
+#include <dlib/data_io.h>
+
+using namespace dlib;
+
+int main() {
+    // Load Titanic dataset
+    dlib::array<array2d<unsigned char>> images_train, images_test;
+    std::vector<unsigned long> labels_train, labels_test;
+    load_mnist_dataset("titanic_train_images.csv", "titanic_train_labels.csv", images_train, labels_train);
+    load_mnist_dataset("titanic_test_images.csv", "titanic_test_labels.csv", images_test, labels_test);
+
+    // Preprocess data: convert images and labels into matrices
+
+    // Define a neural network model
+    using net_type = loss_multiclass_log<
+        fc<2,
+        relu<fc<50,
+        relu<fc<50,
+        input<matrix<unsigned char>>
+        >>>>>>;
+
+    net_type net;
+
+    // Set parameters and train the model
+    dnn_trainer<net_type> trainer(net);
+    trainer.set_learning_rate(0.01);
+    trainer.set_min_learning_rate(0.00001);
+    trainer.set_mini_batch_size(128);
+    trainer.be_verbose();
+
+    // Train the model
+    while (!trainer.get_learning_rate() <= 0.00001) {
+        trainer.train(images_train, labels_train);
+        trainer.set_learning_rate(trainer.get_learning_rate() * 0.1);
+    }
+
+    // Evaluate the model
+    int num_correct = 0;
+    for (size_t i = 0; i < images_test.size(); ++i) {
+        if (predict_label(net, images_test[i]) == labels_test[i])
+            ++num_correct;
+    }
+
+    double accuracy = static_cast<double>(num_correct) / images_test.size();
+    std::cout << "Accuracy: " << accuracy << std::endl;
+
+    // Predict survival for a specific person
+    matrix<unsigned char> person_data; // Fill with person's data
+    unsigned long survival_prediction = predict_label(net, person_data);
+    
+    if (survival_prediction == 0) {
+        std::cout << "The person is not predicted to survive." << std::endl;
+    } else {
+        std::cout << "The person is predicted to survive." << std::endl;
+    }
+
+    return 0;
+}
+
